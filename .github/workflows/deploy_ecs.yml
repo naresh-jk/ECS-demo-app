@@ -8,7 +8,7 @@ steps:
   - name: Configure AWS Credentials
     uses: aws-actions/configure-aws-credentials@v4
     with:
-      # Use secrets defined in your GitHub repository settings
+      # These secrets must be set in your GitHub repository settings
       aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
       aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       aws-region: ${{ secrets.AWS_REGION }}
@@ -26,21 +26,23 @@ steps:
       ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
       IMAGE_TAG: ${{ github.sha }} # Use the commit SHA as the image tag
     run: |
-      docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
-      docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
+      # Build the image using the Dockerfile we created
+      docker build -t $ECR_REGISTRY/$node-microservice-repo:$IMAGE_TAG .
+      docker tag $ECR_REGISTRY/$node-microservice-repo:$IMAGE_TAG $ECR_REGISTRY/$node-microservice-repo:latest
 
   - name: Push Docker Image to ECR
     env:
       ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
       IMAGE_TAG: ${{ github.sha }}
     run: |
-      docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-      docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+      docker push $ECR_REGISTRY/$node-microservice-repo:$IMAGE_TAG
+      docker push $ECR_REGISTRY/$node-microservice-repo:latest
 
   # -----------------------------------------------------------
   # 3. UPDATE ECS TASK DEFINITION & SERVICE
   # -----------------------------------------------------------
   - name: Download Task Definition
+    # Downloads the currently active Task Definition JSON
     run: |
       aws ecs describe-task-definition --task-definition ${{ env.ECS_TASK_DEFINITION }} --query taskDefinition > task-definition.json
 
@@ -50,12 +52,12 @@ steps:
     with:
       task-definition: task-definition.json
       container-name: ${{ env.CONTAINER_NAME }}
-      image: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
+      image: ${{ steps.login-ecr.outputs.registry }}/${{ env.node-microservice-repo }}:${{ github.sha }}
 
   - name: Deploy to ECS Service
     uses: aws-actions/amazon-ecs-deploy-task-definition@v1
     with:
-      task-definition: ${{ steps.task-def.outputs.task-definition }}
-      service: ${{ env.ECS_SERVICE }}
-      cluster: ${{ env.ECS_CLUSTER }}
+      task-definition: ${{ steps.task-def-node.outputs.task-definition }}
+      service: ${{ env.task-def-node-service-z3mf14vb }}
+      cluster: ${{ env.blushing-gecko-tpi31w }}
       wait-for-service-stability: true
